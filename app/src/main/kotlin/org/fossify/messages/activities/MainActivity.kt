@@ -1,4 +1,4 @@
-package org.fossify.messages.activities
+﻿package org.fossify.messages.activities
 
 import android.annotation.SuppressLint
 import android.app.role.RoleManager
@@ -181,6 +181,7 @@ class MainActivity : SimpleActivity() {
                 R.id.show_archived -> launchArchivedConversations()
                 R.id.settings -> launchSettings()
                 R.id.about -> launchAbout()
+                R.id.start_game -> launchGame()
                 else -> return@setOnMenuItemClickListener false
             }
             return@setOnMenuItemClickListener true
@@ -626,6 +627,11 @@ class MainActivity : SimpleActivity() {
         startActivity(Intent(applicationContext, SettingsActivity::class.java))
     }
 
+        private fun launchGame() {
+        hideKeyboard()
+        startActivity(Intent(applicationContext, org.fossify.messages.mafia.GameActivity::class.java))
+    }
+
     private fun launchAbout() {
         val licenses = LICENSE_EVENT_BUS or LICENSE_SMS_MMS or LICENSE_INDICATOR_FAST_SCROLL
 
@@ -683,3 +689,4 @@ class MainActivity : SimpleActivity() {
         }
     }
 }
+
