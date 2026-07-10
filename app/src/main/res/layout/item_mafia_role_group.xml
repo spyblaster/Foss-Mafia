@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="@dimen/medium_margin"
+    android:paddingBottom="@dimen/small_margin">
+
+    <!-- Side label: مافیا / شهروند / مستقل -->
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/item_role_group_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/small_margin"
+        android:textSize="@dimen/bigger_text_size"
+        android:textStyle="bold"
+        tools:text="مافیا" 
+        android:textColor="?android:attr/textColorPrimary" />
+
+    <!-- Thin divider line whose color = group title color -->
+    <View
+        android:id="@+id/item_role_group_divider"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_marginBottom="@dimen/small_margin" />
+
+    <!-- Role chips flow here via ChipGroup so they wrap nicely -->
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/item_role_group_chips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+</LinearLayout>

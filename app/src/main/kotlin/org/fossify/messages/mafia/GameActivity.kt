@@ -1,198 +1,126 @@
-﻿package org.fossify.messages.mafia
+package org.fossify.messages.mafia
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
-import android.view.View
-import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
-import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import org.fossify.commons.extensions.beVisibleIf
+import org.fossify.commons.extensions.toast
+import org.fossify.commons.extensions.viewBinding
+import org.fossify.messages.R
+import org.fossify.messages.databinding.ActivityMafiaGameBinding
+import org.fossify.messages.databinding.DialogMafiaAddPlayerBinding
+import org.fossify.messages.databinding.DialogMafiaTermsBinding
+import org.fossify.messages.mafia.adapters.PlayersAdapter
+import java.io.File
 import java.text.Collator
 import java.util.Locale
 
 class GameActivity : BaseGameActivity() {
 
-    data class Player(val name: String, val phone: String = "") : java.io.Serializable
+    data class Player(
+        val name: String,
+        val phone: String = ""
+    ) : java.io.Serializable
 
+    data class ScenarioRole(val name: String, val side: String, val selectionType: Int = 0) : java.io.Serializable
+    data class CustomScenario(val name: String, val roles: List<ScenarioRole>, val playerCount: Int) : java.io.Serializable
+
+    data class SavedGameData(
+        val players: List<Player>,
+        val customScenarios: List<CustomScenario> = emptyList()
+    ) : java.io.Serializable
+
+    private val binding by viewBinding(ActivityMafiaGameBinding::inflate)
     private val players = mutableListOf<Player>()
     private val selectedPlayers = mutableSetOf<Player>()
-    private lateinit var playersListView: LinearLayout
-    private lateinit var countText: TextView
-    private val gson = Gson()
-    private val persianCollator = Collator.getInstance(Locale("fa"))
+    private val persianCollator = Collator.getInstance(Locale.forLanguageTag("fa"))
+    private lateinit var playersAdapter: PlayersAdapter
 
     private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { savePlayersToUri(it) }
     }
-
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { loadPlayersFromUri(it) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Check terms acceptance
         val prefs = getSharedPreferences("mafia_prefs", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("terms_accepted", false)) {
-            showTermsDialog()
-            return
+            showTermsDialog(); return
         }
-
         val savedGameFile = java.io.File(filesDir, "game.json")
         if (savedGameFile.exists()) {
-            val intent = Intent(this, ResultActivity::class.java)
-            intent.putExtra("from_saved", true)
-            startActivity(intent)
-            finish()
-            return
+            startActivity(Intent(this, ResultActivity::class.java).putExtra("from_saved", true))
+            finish(); return
         }
-
         setupMainUI()
     }
 
     private fun showTermsDialog() {
-        var termsText: String
-        try {
-            val inputStream = assets.open("terms.json")
-            val json = inputStream.bufferedReader().readText()
-            inputStream.close()
-            val type = object : TypeToken<Map<String, Any>>() {}.type
-            val data: Map<String, Any> = gson.fromJson(json, type)
-            val terms = data["terms"] as? Map<String, Any>
-            val title = terms?.get("title")?.toString() ?: "شرایط استفاده"
-            val body = terms?.get("body")?.toString() ?: ""
-            termsText = "$title\n\n$body"
-        } catch (e: Exception) {
-            termsText = "با استفاده از این برنامه، شما می‌پذیرید که:\n\n" +
-                    "۱. این برنامه تنها برای مدیریت بازی مافیا طراحی شده است.\n" +
-                    "۲. مسئولیت استفاده از برنامه بر عهده کاربر است.\n" +
-                    "۳. توسعه‌دهنده هیچ مسئولیتی در قبال سوءاستفاده از برنامه ندارد."
-        }
-
-        val scrollView = ScrollView(this).apply {
-            setPadding(24, 16, 24, 16)
-        }
-        val textView = TextView(this).apply {
-            text = termsText
-            textSize = 15f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.START
-        }
-        scrollView.addView(textView)
-
-        AlertDialog.Builder(this)
-            .setTitle("شرایط استفاده")
-            .setView(scrollView)
+        val termsText = loadTermsText()
+        val dialogBinding = DialogMafiaTermsBinding.inflate(layoutInflater)
+        dialogBinding.dialogTermsText.text = termsText
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_terms_title)
+            .setView(dialogBinding.root)
             .setCancelable(false)
-            .setPositiveButton("می‌پذیرم") { _, _ ->
-                val prefs = getSharedPreferences("mafia_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("terms_accepted", true).apply()
+            .setPositiveButton(R.string.mafia_accept) { _, _ ->
+                getSharedPreferences("mafia_prefs", Context.MODE_PRIVATE)
+                    .edit().putBoolean("terms_accepted", true).apply()
                 setupMainUI()
             }
-            .setNegativeButton("نمی‌پذیرم") { _, _ -> finish() }
+            .setNegativeButton(R.string.mafia_decline) { _, _ -> finish() }
             .show()
     }
 
-    private fun setupMainUI() {
-        val rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
+    private fun loadTermsText(): String {
+        return try {
+            val json = assets.open("terms.json").bufferedReader().use { it.readText() }
+            val type = object : TypeToken<Map<String, Any>>() {}.type
+            @Suppress("UNCHECKED_CAST")
+            val data: Map<String, Any> = mafiaGson.fromJson(json, type)
+            val terms = data["terms"] as? Map<String, Any>
+            val title = terms?.get("title")?.toString() ?: getString(R.string.mafia_terms_title)
+            val body = terms?.get("body")?.toString() ?: ""
+            "$title\n\n$body"
+        } catch (e: Exception) {
+            getString(R.string.mafia_terms_default_body)
         }
-
-        countText = TextView(this).apply {
-            text = "تعداد بازیکنان: ۰"
-            textSize = 18f
-            gravity = Gravity.CENTER
-            setPadding(0, 16, 0, 8)
-        }
-
-        playersListView = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        val scrollView = ScrollView(this).apply {
-            addView(playersListView)
-        }
-
-        val importExportLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 6, 0, 6)
-        }
-
-        val importBtn = createStyledButton("بارگذاری")
-        importBtn.setOnClickListener { importLauncher.launch(arrayOf("application/json")) }
-
-        val exportBtn = createStyledButton("ذخیره")
-        exportBtn.setOnClickListener {
-            if (players.isEmpty()) {
-                Toast.makeText(this@GameActivity, "هیچ بازیکنی برای ذخیره وجود ندارد", Toast.LENGTH_SHORT).show()
-            } else {
-                exportLauncher.launch("players.json")
-            }
-        }
-
-        importBtn.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, 6, 0) }
-        importExportLayout.addView(importBtn)
-        exportBtn.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(6, 0, 0, 0) }
-        importExportLayout.addView(exportBtn)
-
-        val bottomLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 0)
-        }
-
-        val addPlayerBtn = createStyledButton("ثبت بازیکن")
-        addPlayerBtn.setOnClickListener { showAddPlayerDialog() }
-
-        val continueBtn = createStyledButton("ادامه")
-        continueBtn.setOnClickListener {
-            if (selectedPlayers.isEmpty()) {
-                Toast.makeText(this@GameActivity, "هیچ بازیکنی انتخاب نشده", Toast.LENGTH_SHORT).show()
-            } else {
-                startScenarioScreen()
-            }
-        }
-
-        addPlayerBtn.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, 6, 0) }
-        bottomLayout.addView(addPlayerBtn)
-        continueBtn.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(6, 0, 0, 0) }
-        bottomLayout.addView(continueBtn)
-
-        rootLayout.addView(countText)
-        rootLayout.addView(scrollView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        rootLayout.addView(importExportLayout)
-        rootLayout.addView(bottomLayout)
-
-        setContentView(rootLayout)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "انتخاب بازیکنان"
-
-        loadPlayers()
     }
 
-    private fun createStyledButton(text: String): Button {
-        return Button(this).apply {
-            this.text = text
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            val drawable = GradientDrawable().apply {
-                setColor(Color.parseColor("#0097A7"))
-                cornerRadius = 24f
-            }
-            background = drawable
-            setPadding(8, 12, 8, 12)
-            gravity = Gravity.CENTER
+    private fun setupMainUI() {
+        setContentView(binding.root)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = getString(R.string.mafia_select_players_title)
+
+        playersAdapter = PlayersAdapter(
+            selectedPlayers = { selectedPlayers },
+            onToggle = { player, isChecked ->
+                if (isChecked) selectedPlayers.add(player) else selectedPlayers.remove(player)
+                updateCountText()
+            },
+            onDelete = { player -> confirmDeletePlayer(player) },
+            onEdit = { player -> showEditPlayerDialog(player) }
+        )
+        binding.gamePlayersList.adapter = playersAdapter
+
+        binding.gameImportBtn.setOnClickListener { importLauncher.launch(arrayOf("application/json")) }
+        binding.gameExportBtn.setOnClickListener {
+            if (players.isEmpty()) toast(R.string.mafia_no_players_to_save)
+            else exportLauncher.launch("players.json")
         }
+        binding.gameAddPlayerBtn.setOnClickListener { showAddPlayerDialog() }
+        binding.gameContinueBtn.setOnClickListener {
+            if (selectedPlayers.isEmpty()) toast(R.string.mafia_no_players_selected)
+            else startScenarioScreen()
+        }
+
+        loadPlayers()
     }
 
     private fun loadPlayers() {
@@ -200,148 +128,163 @@ class GameActivity : BaseGameActivity() {
         val json = prefs.getString("players", "[]") ?: "[]"
         val type = object : TypeToken<List<Player>>() {}.type
         players.clear()
-        players.addAll(gson.fromJson(json, type))
+        players.addAll(mafiaGson.fromJson(json, type))
         players.sortWith { a, b -> persianCollator.compare(a.name, b.name) }
         refreshList()
     }
 
     private fun savePlayersToPrefs() {
-        val prefs = getSharedPreferences("mafia_players", Context.MODE_PRIVATE)
-        prefs.edit().putString("players", gson.toJson(players)).apply()
+        getSharedPreferences("mafia_players", Context.MODE_PRIVATE)
+            .edit().putString("players", mafiaGson.toJson(players)).apply()
     }
 
     private fun savePlayersToUri(uri: Uri) {
         try {
-            contentResolver.openOutputStream(uri)?.use { outputStream ->
-                outputStream.write(gson.toJson(players).toByteArray())
+            val customScenariosFile = File(filesDir, "custom_scenarios.json")
+            val customScenarios: List<CustomScenario> = if (customScenariosFile.exists()) {
+                val type = object : TypeToken<List<CustomScenario>>() {}.type
+                mafiaGson.fromJson(customScenariosFile.readText(), type)
+            } else {
+                emptyList()
             }
-            Toast.makeText(this, "بازیکنان با موفقیت ذخیره شدند", Toast.LENGTH_SHORT).show()
+            
+            val savedData = SavedGameData(players = players, customScenarios = customScenarios)
+            contentResolver.openOutputStream(uri)?.use { it.write(mafiaGson.toJson(savedData).toByteArray()) }
+            toast(R.string.mafia_players_saved)
         } catch (e: Exception) {
-            Toast.makeText(this, "خطا در ذخیره: ${e.message}", Toast.LENGTH_SHORT).show()
+            toast(getString(R.string.mafia_save_error, e.message ?: ""))
         }
     }
 
     private fun loadPlayersFromUri(uri: Uri) {
         try {
             val json = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: return
-            val type = object : TypeToken<List<Player>>() {}.type
-            val importedPlayers: List<Player> = gson.fromJson(json, type)
-            
-            var addedCount = 0
-            for (player in importedPlayers) {
-                if (players.none { it.name == player.name }) {
-                    players.add(player)
-                    addedCount++
-                }
+
+            val savedData: SavedGameData? = try {
+                mafiaGson.fromJson(json, SavedGameData::class.java)
+            } catch (e: Exception) {
+                null
+            }
+
+            val importedPlayers: List<Player> = if (savedData != null) {
+                savedData.players
+            } else {
+                val type = object : TypeToken<List<Player>>() {}.type
+                mafiaGson.fromJson(json, type)
+            }
+
+            var added = 0
+            for (p in importedPlayers) {
+                if (players.none { it.name == p.name }) { players.add(p); added++ }
             }
             players.sortWith { a, b -> persianCollator.compare(a.name, b.name) }
-            savePlayersToPrefs()
-            refreshList()
-            Toast.makeText(this, "$addedCount بازیکن جدید اضافه شد", Toast.LENGTH_SHORT).show()
+            savePlayersToPrefs(); refreshList()
+
+            if (savedData != null && savedData.customScenarios.isNotEmpty()) {
+                val customScenariosFile = File(filesDir, "custom_scenarios.json")
+                customScenariosFile.writeText(mafiaGson.toJson(savedData.customScenarios))
+            }
+
+            toast(getString(R.string.mafia_players_imported, added))
         } catch (e: Exception) {
-            Toast.makeText(this, "خطا در خواندن فایل: ${e.message}", Toast.LENGTH_SHORT).show()
+            toast(getString(R.string.mafia_import_error, e.message ?: ""))
         }
     }
 
     private fun refreshList() {
-        playersListView.removeAllViews()
-        selectedPlayers.clear()
-        for (player in players) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(8, 8, 8, 8)
-            }
-
-            val checkBox = CheckBox(this).apply {
-                text = player.name
-                if (player.phone.isNotEmpty()) {
-                    text = "${player.name}\n${player.phone}"
-                }
-                setOnCheckedChangeListener { _, isChecked ->
-                    if (isChecked) selectedPlayers.add(player) else selectedPlayers.remove(player)
-                    countText.text = "تعداد بازیکنان: ${selectedPlayers.size}"
-                }
-            }
-
-            val deleteBtn = Button(this).apply {
-                text = "❌"
-                setBackgroundColor(Color.TRANSPARENT)
-                setMinWidth(0)
-                setMinHeight(0)
-                setPadding(8, 8, 8, 8)
-                setOnClickListener {
-                    AlertDialog.Builder(this@GameActivity)
-                        .setTitle("حذف بازیکن")
-                        .setMessage("${player.name} حذف شود؟")
-                        .setPositiveButton("بله") { _, _ ->
-                            players.remove(player)
-                            savePlayersToPrefs()
-                            refreshList()
-                        }
-                        .setNegativeButton("خیر", null)
-                        .show()
-                }
-            }
-
-            row.addView(checkBox, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            row.addView(deleteBtn)
-            playersListView.addView(row)
-        }
-        countText.text = "تعداد بازیکنان: ۰"
+        playersAdapter.submitList(players.toList())
+        binding.gameEmptyPlaceholder.beVisibleIf(players.isEmpty())
+        binding.gamePlayersList.beVisibleIf(players.isNotEmpty())
+        updateCountText()
     }
 
-    private fun showAddPlayerDialog() {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(40, 20, 40, 20)
-        }
-        val nameInput = EditText(this).apply {
-            hint = "نام (اجباری)"
-            textDirection = View.TEXT_DIRECTION_RTL
-        }
-        val phoneInput = EditText(this).apply {
-            hint = "شماره تلفن (اختیاری)"
-            inputType = android.text.InputType.TYPE_CLASS_PHONE
-            textDirection = View.TEXT_DIRECTION_LTR
-        }
-        layout.addView(nameInput)
-        layout.addView(phoneInput)
+    private fun updateCountText() {
+        binding.gameCountText.text = getString(R.string.mafia_player_count, selectedPlayers.size.toPersianDigits())
+    }
 
-        AlertDialog.Builder(this)
-            .setTitle("ثبت بازیکن جدید")
-            .setView(layout)
-            .setPositiveButton("ثبت") { _, _ ->
-                val name = nameInput.text.toString().trim()
-                val phone = phoneInput.text.toString().trim()
-                if (name.isEmpty()) {
-                    Toast.makeText(this, "نام نمی‌تواند خالی باشد", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                if (players.any { it.name == name }) {
-                    Toast.makeText(this, "این نام قبلاً ثبت شده", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                players.add(Player(name, phone))
-                players.sortWith { a, b -> persianCollator.compare(a.name, b.name) }
+    private fun confirmDeletePlayer(player: Player) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_delete_player_title)
+            .setMessage(getString(R.string.mafia_delete_player_confirm, player.name))
+            .setPositiveButton(R.string.mafia_yes) { _, _ ->
+                players.remove(player)
+                selectedPlayers.remove(player)
                 savePlayersToPrefs()
                 refreshList()
             }
-            .setNegativeButton("انصراف", null)
+            .setNegativeButton(R.string.mafia_no, null)
             .show()
+    }
+
+    private fun showAddPlayerDialog() {
+        val dialogBinding = DialogMafiaAddPlayerBinding.inflate(layoutInflater)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_add_player_title)
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.mafia_register, null)
+            .setNegativeButton(R.string.mafia_cancel, null)
+            .show()
+            .apply {
+                getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val name = dialogBinding.dialogPlayerName.text.toString().trim()
+                    val phone = dialogBinding.dialogPlayerPhone.text.toString().trim()
+                    if (name.isEmpty()) {
+                        dialogBinding.dialogPlayerNameHolder.error = getString(R.string.mafia_name_empty_error)
+                        return@setOnClickListener
+                    }
+                    if (players.any { it.name == name }) {
+                        dialogBinding.dialogPlayerNameHolder.error = getString(R.string.mafia_name_duplicate_error)
+                        return@setOnClickListener
+                    }
+                    players.add(Player(name, phone))
+                    players.sortWith { a, b -> persianCollator.compare(a.name, b.name) }
+                    savePlayersToPrefs(); refreshList(); dismiss()
+                }
+            }
+    }
+
+    private fun showEditPlayerDialog(player: Player) {
+        val dialogBinding = DialogMafiaAddPlayerBinding.inflate(layoutInflater)
+        dialogBinding.dialogPlayerName.setText(player.name)
+        dialogBinding.dialogPlayerPhone.setText(player.phone)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_edit_player_title)
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.mafia_ok, null)
+            .setNegativeButton(R.string.mafia_cancel, null)
+            .show()
+            .apply {
+                getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val newName = dialogBinding.dialogPlayerName.text.toString().trim()
+                    val newPhone = dialogBinding.dialogPlayerPhone.text.toString().trim()
+                    if (newName.isEmpty()) {
+                        dialogBinding.dialogPlayerNameHolder.error = getString(R.string.mafia_name_empty_error)
+                        return@setOnClickListener
+                    }
+                    if (newName != player.name && players.any { it.name == newName }) {
+                        dialogBinding.dialogPlayerNameHolder.error = getString(R.string.mafia_name_duplicate_error)
+                        return@setOnClickListener
+                    }
+                    val wasSelected = selectedPlayers.contains(player)
+                    players.remove(player)
+                    val updatedPlayer = player.copy(name = newName, phone = newPhone)
+                    players.add(updatedPlayer)
+                    players.sortWith { a, b -> persianCollator.compare(a.name, b.name) }
+                    if (wasSelected) {
+                        selectedPlayers.remove(player)
+                        selectedPlayers.add(updatedPlayer)
+                    }
+                    savePlayersToPrefs(); refreshList(); dismiss()
+                }
+            }
     }
 
     private fun startScenarioScreen() {
         val intent = Intent(this, ScenarioActivity::class.java)
-        intent.putExtra("players", gson.toJson(selectedPlayers.toList()))
+        intent.putExtra("players", mafiaGson.toJson(selectedPlayers.toList()))
         startActivity(intent)
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
-    }
+    override fun onSupportNavigateUp(): Boolean { finish(); return true }
 }
-
-
-

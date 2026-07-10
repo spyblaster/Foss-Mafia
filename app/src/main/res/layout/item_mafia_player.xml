@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/small_margin"
+    android:paddingTop="@dimen/small_margin"
+    android:paddingEnd="@dimen/small_margin"
+    android:paddingBottom="@dimen/small_margin">
+
+    <!-- Checkbox with name only (no phone below) -->
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/item_player_checkbox"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/small_margin"
+        android:layout_weight="1"
+        android:text=""
+        tools:text="نام بازیکن" />
+
+    <!-- Phone number, aligned right, smaller text -->
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/item_player_phone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/small_margin"
+        android:gravity="center"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textSize="12sp"
+        tools:text="09121234567" />
+
+    <!-- Edit button -->
+    <ImageButton
+        android:id="@+id/item_player_edit_btn"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/mafia_edit_player_title"
+        android:padding="8dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_mafia_edit" />
+
+    <!-- Delete button on the right -->
+    <ImageButton
+        android:id="@+id/item_player_delete_btn"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/mafia_delete_player_title"
+        android:padding="8dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_mafia_delete" />
+
+</LinearLayout>

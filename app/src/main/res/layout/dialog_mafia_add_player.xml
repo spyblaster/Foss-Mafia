@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/activity_margin"
+    android:paddingTop="@dimen/medium_margin"
+    android:paddingEnd="@dimen/activity_margin"
+    android:paddingBottom="@dimen/medium_margin">
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/dialog_player_name_holder"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/mafia_name_required_hint">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/dialog_player_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layoutDirection="rtl"
+            android:textDirection="rtl" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/dialog_player_phone_holder"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/medium_margin"
+        android:hint="@string/mafia_phone_optional_hint">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/dialog_player_phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="phone"
+            android:layoutDirection="ltr"
+            android:textDirection="ltr" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+</LinearLayout>

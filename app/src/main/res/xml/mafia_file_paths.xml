@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="mafia_images" path="/" />
+    <files-path name="mafia_files" path="/" />
+    <external-cache-path name="mafia_external" path="/" />
+</paths>

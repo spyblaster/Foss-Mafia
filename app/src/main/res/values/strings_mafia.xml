@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared -->
+    <string name="mafia_yes">بله</string>
+    <string name="mafia_no">خیر</string>
+    <string name="mafia_ok">باشه</string>
+    <string name="mafia_continue_btn">ادامه</string>
+    <string name="mafia_cancel">انصراف</string>
+    <string name="mafia_close">بستن</string>
+
+    <!-- GameActivity -->
+    <string name="mafia_player_count">تعداد بازیکنان: %1$s</string>
+    <string name="mafia_import">بارگذاری</string>
+    <string name="mafia_export">ذخیره</string>
+    <string name="mafia_add_player">ثبت بازیکن</string>
+    <string name="mafia_continue">ادامه</string>
+    <string name="mafia_no_players_to_save">هیچ بازیکنی برای ذخیره وجود ندارد</string>
+    <string name="mafia_no_players_selected">هیچ بازیکنی انتخاب نشده</string>
+    <string name="mafia_players_saved">بازیکنان با موفقیت ذخیره شدند</string>
+    <string name="mafia_save_error">خطا در ذخیره: %1$s</string>
+    <string name="mafia_players_imported">%1$d بازیکن جدید اضافه شد</string>
+    <string name="mafia_import_error">خطا در خواندن فایل: %1$s</string>
+    <string name="mafia_delete_player_title">حذف بازیکن</string>
+    <string name="mafia_delete_player_confirm">%1$s حذف شود؟</string>
+    <string name="mafia_add_player_title">ثبت بازیکن جدید</string>
+    <string name="mafia_name_required_hint">نام (اجباری)</string>
+    <string name="mafia_phone_optional_hint">شماره تلفن (اختیاری)</string>
+    <string name="mafia_name_empty_error">نام نمی‌تواند خالی باشد</string>
+    <string name="mafia_name_duplicate_error">این نام قبلاً ثبت شده</string>
+    <string name="mafia_register">ثبت</string>
+    <string name="mafia_select_players_title">انتخاب بازیکنان</string>
+    <string name="mafia_no_players_yet">هنوز بازیکنی ثبت نشده</string>
+
+    <string name="mafia_terms_title">شرایط استفاده</string>
+    <string name="mafia_terms_default_body">با استفاده از این برنامه، شما می‌پذیرید که:\n\n۱. این برنامه تنها برای مدیریت بازی مافیا طراحی شده است.\n۲. مسئولیت استفاده از برنامه بر عهده کاربر است.\n۳. توسعه‌دهنده هیچ مسئولیتی در قبال سوءاستفاده از برنامه ندارد.</string>
+    <string name="mafia_accept">می‌پذیرم</string>
+    <string name="mafia_decline">نمی‌پذیرم</string>
+
+    <!-- ScenarioActivity -->
+    <string name="mafia_select_scenario_title">انتخاب سناریو</string>
+    <string name="mafia_select_scenario_error">یک سناریو انتخاب کنید</string>
+    <string name="mafia_delete_scenario_title">حذف سناریو</string>
+    <string name="mafia_delete_scenario_confirm">سناریو «%1$s» حذف شود؟</string>
+    <string name="mafia_load_scenarios_error">خطا در بارگذاری سناریوها</string>
+    <string name="mafia_player_count_label">تعداد بازیکنان: %1$d</string>
+    <string name="mafia_seating">نشستن</string>
+    <string name="mafia_share">همرسانی</string>
+
+    <!-- RoleActivity -->
+    <string name="mafia_roles_title">نقش‌های بازی</string>
+    <string name="mafia_add_role">افزودن نقش</string>
+    <string name="mafia_delete_role">حذف نقش</string>
+    <string name="mafia_save_scenario">ذخیره</string>
+    <string name="mafia_assign_roles">نقش‌دهی</string>
+    <string name="mafia_error_title">خطا</string>
+    <string name="mafia_count_mismatch">تعداد بازیکنان با نقش‌ها برابر نیست.\nبازیکنان: %1$d\nنقش‌ها: %2$d</string>
+    <string name="mafia_assign_confirm">نقش‌دهی انجام شود؟</string>
+    <string name="mafia_side_mafia">مافیا</string>
+    <string name="mafia_side_city">شهروند</string>
+    <string name="mafia_side_independent">مستقل</string>
+    <string name="mafia_side_label">ساید</string>
+    <string name="mafia_selection_type_label">نوع انتخاب</string>
+    <string name="mafia_select_single">تک گزینه</string>
+    <string name="mafia_select_two">دو گزینه</string>
+    <string name="mafia_select_multi">چند گزینه</string>
+    <string name="mafia_role_name_hint">نام نقش</string>
+    <string name="mafia_role_name_empty_error">نام نقش نمی‌تواند خالی باشد</string>
+    <string name="mafia_scenario_name_hint">نام سناریو</string>
+    <string name="mafia_scenario_name_label">نام سناریو را وارد کنید:</string>
+    <string name="mafia_scenario_name_empty_error">نام سناریو نمی‌تواند خالی باشد</string>
+    <string name="mafia_scenario_saved">سناریو ذخیره شد</string>
+    <string name="mafia_select_roles_to_delete">نقش‌هایی که می‌خواهید حذف کنید را انتخاب کنید</string>
+
+    <!-- ResultActivity -->
+    <string name="mafia_game_code">کد بازی: %1$s</string>
+    <string name="mafia_send_roles">فرستادن نقش‌ها</string>
+    <string name="mafia_end_game">پایان بازی</string>
+    <string name="mafia_table">جدول</string>
+    <string name="mafia_end_game_confirm">بازی پایان یابد و اطلاعات حذف شود؟</string>
+    <string name="mafia_saved_game_title">بازی ذخیره شده</string>
+    <string name="mafia_result_title">نتیجه نقش‌دهی</string>
+    <string name="mafia_no_phone_numbers">هیچ بازیکنی شماره تلفن ندارد</string>
+    <string name="mafia_send_roles_confirm">نقش‌ها برای %1$d بازیکن فرستاده شود؟</string>
+    <string name="mafia_players_without_phone">%1$d بازیکن شماره تلفن ندارند:\n%2$s</string>
+    <string name="mafia_send_result_title">نتیجه ارسال</string>
+    <string name="mafia_sms_sent_success">پیامک‌ها با موفقیت ارسال شدند (%1$d عدد)</string>
+    <string name="mafia_sms_sent_partial">%1$d پیامک ارسال شد، %2$d خطا داشت</string>
+
+    <!-- ManageActivity (restyle pass only) -->
+    <string name="mafia_awake">بیدار</string>
+    <string name="mafia_edit_player_title">ویرایش بازیکن</string>
+    <string name="mafia_asleep">خواب</string>
+</resources>

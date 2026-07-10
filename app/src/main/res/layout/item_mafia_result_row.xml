@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/small_margin"
+    android:paddingTop="6dp"
+    android:paddingEnd="@dimen/small_margin"
+    android:paddingBottom="6dp">
+
+    <!--
+        Three equal columns so the "*" separator stays in the exact same
+        horizontal position for every row, regardless of name/role length:
+
+        [  player name  ] [ * ] [  role name  ]
+    -->
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/item_result_player_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="end"
+        android:textSize="@dimen/normal_text_size"
+        tools:text="امیر" 
+        android:textColor="?android:attr/textColorPrimary" />
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/item_result_separator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_marginEnd="6dp"
+        android:text=" * "
+        android:textSize="@dimen/normal_text_size" 
+        android:textColor="?android:attr/textColorPrimary" />
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/item_result_role_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="start"
+        android:textSize="@dimen/normal_text_size"
+        tools:text="رییس" 
+        android:textColor="?android:attr/textColorPrimary" />
+
+</LinearLayout>

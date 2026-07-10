@@ -1,256 +1,307 @@
-﻿package org.fossify.messages.mafia
+package org.fossify.messages.mafia
 
+import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
-import android.widget.*
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
-import com.google.gson.Gson
+import android.widget.CheckBox
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.reflect.TypeToken
+import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.toast
+import org.fossify.commons.extensions.viewBinding
+import org.fossify.messages.R
+import org.fossify.messages.databinding.ActivityMafiaRoleBinding
+import org.fossify.messages.mafia.adapters.RoleGroup
+import org.fossify.messages.mafia.adapters.RoleSummaryAdapter
 import java.io.File
 import java.io.Serializable
 
 class RoleActivity : BaseGameActivity() {
 
-    data class Role(val name: String, val side: String) : Serializable
+    data class Role(val name: String, val side: String, val selectionType: Int = 0) : Serializable
     data class Scenario(val name: String, val roles: MutableList<Role>, val playerCount: Int)
-    data class AssignedRole(val playerName: String, val playerPhone: String, val role: Role) : Serializable
+    data class AssignedRole(val playerName: String, val playerPhone: String, val role: Role, var lives: Int = 1) : Serializable
 
-    private val gson = Gson()
+    companion object {
+        const val SELECT_SINGLE = 0
+        const val SELECT_TWO = 1
+        const val SELECT_MULTI = 2
+    }
+
+    private val binding by viewBinding(ActivityMafiaRoleBinding::inflate)
+    private val summaryAdapter = RoleSummaryAdapter()
     private lateinit var scenario: Scenario
     private lateinit var players: List<GameActivity.Player>
-    private lateinit var mafiaText: TextView
-    private lateinit var cityText: TextView
-    private lateinit var independentText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        setContentView(binding.root)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = getString(R.string.mafia_roles_title)
         val playersJson = intent.getStringExtra("players") ?: "[]"
         val scenarioJson = intent.getStringExtra("scenario") ?: return
-
         val playerType = object : TypeToken<List<GameActivity.Player>>() {}.type
-        players = gson.fromJson(playersJson, playerType)
-
+        players = mafiaGson.fromJson(playersJson, playerType)
         val scenarioType = object : TypeToken<Scenario>() {}.type
-        scenario = gson.fromJson(scenarioJson, scenarioType)
-
-        val rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
-        }
-
-        mafiaText = TextView(this).apply { textSize = 16f; setPadding(0, 8, 0, 8) }
-        cityText = TextView(this).apply { textSize = 16f; setPadding(0, 8, 0, 8) }
-        independentText = TextView(this).apply { textSize = 16f; setPadding(0, 8, 0, 8) }
-
-        refreshRoleTexts()
-
-        val scrollView = ScrollView(this).apply {
-            addView(LinearLayout(this@RoleActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(mafiaText)
-                addView(cityText)
-                addView(independentText)
-            })
-        }
-
-        val topButtons = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 16, 0, 8)
-        }
-
-        val addRoleBtn = createStyledButton("افزودن نقش")
-        addRoleBtn.setOnClickListener { showAddRoleDialog() }
-
-        val deleteRoleBtn = createStyledButton("حذف نقش")
-        deleteRoleBtn.setOnClickListener { showDeleteRoleDialog() }
-
-        val saveScenarioBtn = createStyledButton("ذخیره سناریو")
-        saveScenarioBtn.setOnClickListener { showSaveScenarioDialog() }
-
-        topButtons.addView(addRoleBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, 6, 0) })
-        topButtons.addView(deleteRoleBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(6, 0, 6, 0) })
-        topButtons.addView(saveScenarioBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(6, 0, 0, 0) })
-
-        val assignBtn = createStyledButton("نقش‌دهی")
-        assignBtn.setOnClickListener {
-            if (scenario.roles.size != players.size) {
-                AlertDialog.Builder(this@RoleActivity)
-                    .setTitle("خطا")
-                    .setMessage("تعداد بازیکنان با نقش‌ها برابر نیست.\nبازیکنان: ${players.size}\nنقش‌ها: ${scenario.roles.size}")
-                    .setPositiveButton("باشه", null)
-                    .show()
-                return@setOnClickListener
-            }
-            AlertDialog.Builder(this@RoleActivity)
-                .setTitle("نقش‌دهی")
-                .setMessage("نقش‌دهی انجام شود؟")
-                .setPositiveButton("بله") { _, _ -> assignRoles() }
-                .setNegativeButton("خیر", null)
-                .show()
-        }
-
-        rootLayout.addView(scrollView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        rootLayout.addView(topButtons)
-        rootLayout.addView(assignBtn)
-
-        setContentView(rootLayout)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "نقش‌های بازی"
+        scenario = mafiaGson.fromJson(scenarioJson, scenarioType)
+        binding.roleSummaryList.adapter = summaryAdapter
+        refreshSummary()
+        binding.roleAddBtn.setOnClickListener { showAddRoleDialog() }
+        binding.roleDeleteBtn.setOnClickListener { showDeleteRolesDialog() }
+        binding.roleSaveScenarioBtn.setOnClickListener { showSaveScenarioDialog() }
+        binding.roleAssignBtn.setOnClickListener { attemptAssign() }
+        binding.roleSeatingBtn.setOnClickListener { showSeatingDialog() }
     }
 
-    private fun createStyledButton(text: String): Button {
-        return Button(this).apply {
-            this.text = text
-            setTextColor(Color.WHITE)
-            textSize = 11f
-            val drawable = GradientDrawable().apply {
-                setColor(Color.parseColor("#0097A7"))
-                cornerRadius = 24f
-            }
-            background = drawable
-            setPadding(4, 12, 4, 12)
-            gravity = Gravity.CENTER
-        }
+    private fun sideColor(side: String): Int = when (side) {
+        "مافیا" -> ContextCompat.getColor(this, android.R.color.holo_red_dark)
+        "شهروند" -> ContextCompat.getColor(this, android.R.color.holo_green_dark)
+        else -> ContextCompat.getColor(this, android.R.color.holo_orange_dark)
     }
 
-    private fun refreshRoleTexts() {
-        val mafia = scenario.roles.filter { it.side == "مافیا" }
-        val city = scenario.roles.filter { it.side == "شهروند" }
-        val independent = scenario.roles.filter { it.side == "مستقل" }
-        mafiaText.text = "مافیا:\n${mafia.joinToString("، ") { it.name }}"
-        cityText.text = "شهروند:\n${city.joinToString("، ") { it.name }}"
-        independentText.text = "مستقل:\n${independent.joinToString("، ") { it.name }}"
+    private fun refreshSummary() {
+        val sides = listOf(
+            "مافیا" to R.string.mafia_side_mafia,
+            "شهروند" to R.string.mafia_side_city,
+            "مستقل" to R.string.mafia_side_independent
+        )
+        val groups = sides.map { (side, labelRes) ->
+            RoleGroup(
+                title = getString(labelRes),
+                color = sideColor(side),
+                roles = scenario.roles.filter { it.side == side }
+            )
+        }
+        summaryAdapter.submitGroups(groups)
     }
 
     private fun showAddRoleDialog() {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(40, 20, 40, 20)
-        }
-        val sideSpinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@RoleActivity, android.R.layout.simple_spinner_dropdown_item, listOf("شهروند", "مافیا", "مستقل"))
-        }
-        val nameInput = EditText(this).apply { hint = "نام نقش"; textDirection = View.TEXT_DIRECTION_RTL }
-        layout.addView(TextView(this).apply { text = "ساید:" })
-        layout.addView(sideSpinner)
-        layout.addView(nameInput)
-
-        AlertDialog.Builder(this)
-            .setTitle("افزودن نقش")
-            .setView(layout)
-            .setPositiveButton("ثبت") { _, _ ->
-                val name = nameInput.text.toString().trim()
-                if (name.isEmpty()) {
-                    Toast.makeText(this, "نام نقش نمی‌تواند خالی باشد", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                val side = sideSpinner.selectedItem.toString()
-                scenario.roles.add(Role(name, side))
-                refreshRoleTexts()
+        val sides = listOf(
+            getString(R.string.mafia_side_city) to "شهروند",
+            getString(R.string.mafia_side_mafia) to "مافیا",
+            getString(R.string.mafia_side_independent) to "مستقل"
+        ).reversed()
+        val dlg = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_add_role)
+            .setSingleChoiceItems(sides.map { it.first }.toTypedArray(), sides.size - 1) { _, _ -> }
+            .setPositiveButton(R.string.mafia_continue_btn, null)
+            .setNegativeButton(R.string.mafia_cancel, null)
+            .create()
+        dlg.setOnShowListener {
+            dlg.listView?.layoutDirection = View.LAYOUT_DIRECTION_RTL
+            dlg.listView?.textDirection = View.TEXT_DIRECTION_RTL
+            dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val selectedIdx = dlg.listView?.checkedItemPosition ?: -1
+                if (selectedIdx < 0) { dlg.dismiss(); return@setOnClickListener }
+                val side = sides[selectedIdx].second
+                dlg.dismiss()
+                showAddRoleNameDialog(side)
             }
-            .setNegativeButton("انصراف", null)
-            .show()
+        }
+        dlg.show()
     }
 
-    private fun showDeleteRoleDialog() {
+    private fun showAddRoleNameDialog(side: String) {
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val nameLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+        }
+        val nameField = com.google.android.material.textfield.TextInputLayout(this).apply {
+            hint = getString(R.string.mafia_role_name_hint)
+        }
+        val nameEdit = com.google.android.material.textfield.TextInputEditText(this).apply {
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            textDirection = View.TEXT_DIRECTION_RTL
+        }
+        nameField.addView(nameEdit)
+        nameLayout.addView(nameField)
+        val sideLabel = when (side) {
+            "مافیا" -> getString(R.string.mafia_side_mafia)
+            "مستقل" -> getString(R.string.mafia_side_independent)
+            else -> getString(R.string.mafia_side_city)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(sideLabel)
+            .setView(nameLayout)
+            .setPositiveButton(R.string.mafia_continue_btn, null)
+            .setNegativeButton(R.string.mafia_cancel, null)
+            .show()
+            .apply {
+                getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val name = nameEdit.text.toString().trim()
+                    if (name.isEmpty()) {
+                        nameField.error = getString(R.string.mafia_role_name_empty_error)
+                        return@setOnClickListener
+                    }
+                    dismiss()
+                    showAddRoleTypeDialog(side, name)
+                }
+            }
+    }
+
+    private fun showAddRoleTypeDialog(side: String, roleName: String) {
+        val selectionTypes = listOf(
+            getString(R.string.mafia_select_single) to SELECT_SINGLE,
+            getString(R.string.mafia_select_two) to SELECT_TWO,
+            getString(R.string.mafia_select_multi) to SELECT_MULTI
+        ).reversed()
+        val sideLabel = when (side) {
+            "مافیا" -> getString(R.string.mafia_side_mafia)
+            "مستقل" -> getString(R.string.mafia_side_independent)
+            else -> getString(R.string.mafia_side_city)
+        }
+        val dlg = MaterialAlertDialogBuilder(this)
+            .setTitle(sideLabel)
+            .setSingleChoiceItems(selectionTypes.map { it.first }.toTypedArray(), -1) { _, _ -> }
+            .setPositiveButton(R.string.mafia_register, null)
+            .setNegativeButton(R.string.mafia_cancel, null)
+            .create()
+        dlg.setOnShowListener {
+            dlg.listView?.layoutDirection = View.LAYOUT_DIRECTION_RTL
+            dlg.listView?.textDirection = View.TEXT_DIRECTION_RTL
+            dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val selectedIdx = dlg.listView?.checkedItemPosition ?: -1
+                if (selectedIdx < 0) {
+                    toast("یک نوع انتخاب کنید")
+                    return@setOnClickListener
+                }
+                val selType = selectionTypes[selectedIdx].second
+                scenario.roles.add(Role(roleName, side, selType))
+                refreshSummary()
+                dlg.dismiss()
+            }
+        }
+        dlg.show()
+    }
+
+    private fun dp(): Int = (8 * resources.displayMetrics.density).toInt()
+
+    private val textColor get() = getProperTextColor()
+
+    private fun showDeleteRolesDialog() {
+        if (scenario.roles.isEmpty()) return
         val checkBoxes = scenario.roles.map { role ->
             CheckBox(this).apply { text = "${role.name} (${role.side})" }
         }
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
             for (cb in checkBoxes) addView(cb)
         }
-        AlertDialog.Builder(this)
-            .setTitle("حذف نقش‌ها")
-            .setView(layout)
-            .setPositiveButton("حذف") { _, _ ->
-                val toRemove = mutableListOf<Role>()
-                for ((index, cb) in checkBoxes.withIndex()) {
-                    if (cb.isChecked) toRemove.add(scenario.roles[index])
-                }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_delete_role)
+            .setView(ScrollView(this).apply { addView(layout) })
+            .setPositiveButton(R.string.mafia_delete_role) { _, _ ->
+                val toRemove = checkBoxes.indices.filter { checkBoxes[it].isChecked }.map { scenario.roles[it] }
                 scenario.roles.removeAll(toRemove)
-                refreshRoleTexts()
+                refreshSummary()
             }
-            .setNegativeButton("انصراف", null)
+            .setNegativeButton(R.string.mafia_cancel, null)
             .show()
     }
 
     private fun showSaveScenarioDialog() {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(40, 20, 40, 20)
-        }
-        val nameInput = EditText(this).apply {
-            hint = "نام سناریو"
-            textDirection = View.TEXT_DIRECTION_RTL
-        }
-        layout.addView(TextView(this).apply { text = "نام سناریو را وارد کنید:" })
-        layout.addView(nameInput)
-
-        AlertDialog.Builder(this)
-            .setTitle("ذخیره سناریو")
-            .setView(layout)
-            .setPositiveButton("تایید") { _, _ ->
-                val name = nameInput.text.toString().trim()
-                if (name.isEmpty()) {
-                    Toast.makeText(this, "نام سناریو نمی‌تواند خالی باشد", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                saveCustomScenario(name)
-            }
-            .setNegativeButton("انصراف", null)
+        val dialogBinding = org.fossify.messages.databinding.DialogMafiaAddPlayerBinding.inflate(layoutInflater)
+        dialogBinding.dialogPlayerNameHolder.hint = getString(R.string.mafia_scenario_name_hint)
+        dialogBinding.dialogPlayerPhoneHolder.visibility = android.view.View.GONE
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_save_scenario)
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.mafia_ok, null)
+            .setNegativeButton(R.string.mafia_cancel, null)
             .show()
+            .apply {
+                getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val name = dialogBinding.dialogPlayerName.text.toString().trim()
+                    if (name.isEmpty()) {
+                        dialogBinding.dialogPlayerNameHolder.error = getString(R.string.mafia_scenario_name_empty_error)
+                        return@setOnClickListener
+                    }
+                    saveCustomScenario(name)
+                    dismiss()
+                }
+            }
     }
 
     private fun saveCustomScenario(name: String) {
         val file = File(filesDir, "custom_scenarios.json")
         val type = object : TypeToken<MutableList<ScenarioActivity.Scenario>>() {}.type
         val list: MutableList<ScenarioActivity.Scenario> = if (file.exists()) {
-            gson.fromJson(file.readText(), type)
+            mafiaGson.fromJson(file.readText(), type)
         } else {
             mutableListOf()
         }
-
-        val newScenario = ScenarioActivity.Scenario(
-            name = name,
-            roles = scenario.roles.map { ScenarioActivity.Role(it.name, it.side) },
-            playerCount = scenario.roles.size
+        list.add(
+            ScenarioActivity.Scenario(
+                name = name,
+                roles = scenario.roles.map { ScenarioActivity.Role(it.name, it.side, it.selectionType) },
+                playerCount = scenario.roles.size
+            )
         )
-        list.add(newScenario)
-        file.writeText(gson.toJson(list))
-        Toast.makeText(this, "سناریو ذخیره شد", Toast.LENGTH_SHORT).show()
+        file.writeText(mafiaGson.toJson(list))
+        toast(R.string.mafia_scenario_saved)
+    }
+
+    private fun attemptAssign() {
+        if (scenario.roles.size != players.size) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.mafia_error_title)
+                .setMessage(getString(R.string.mafia_count_mismatch, players.size, scenario.roles.size))
+                .setPositiveButton(R.string.mafia_ok, null)
+                .show()
+            return
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mafia_assign_roles)
+            .setMessage(R.string.mafia_assign_confirm)
+            .setPositiveButton(R.string.mafia_yes) { _, _ -> assignRoles() }
+            .setNegativeButton(R.string.mafia_no, null)
+            .show()
     }
 
     private fun assignRoles() {
-        val prefs = getSharedPreferences("mafia_counter", android.content.Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("mafia_counter", Context.MODE_PRIVATE)
         var counter = prefs.getInt("game_counter", 0) + 1
         if (counter > 50) counter = 1
         prefs.edit().putInt("game_counter", counter).apply()
-
+        java.io.File(filesDir, "extra_columns.json").delete()
         val shuffledPlayers = players.toMutableList().apply { shuffle() }
-        val result = mutableListOf<AssignedRole>()
-        for (i in shuffledPlayers.indices) {
-            result.add(AssignedRole(
+        val result = shuffledPlayers.indices.map { i ->
+            AssignedRole(
                 playerName = shuffledPlayers[i].name,
                 playerPhone = shuffledPlayers[i].phone,
                 role = scenario.roles[i]
-            ))
+            )
         }
-        val resultIntent = Intent(this, ResultActivity::class.java)
-        resultIntent.putExtra("result", ArrayList(result))
-        startActivity(resultIntent)
+        val intent = Intent(this, ResultActivity::class.java)
+        intent.putExtra("result", ArrayList(result))
+        startActivity(intent)
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
+    private fun showSeatingDialog() {
+        if (players.isEmpty()) {
+            toast("هیچ بازیکنی وجود ندارد")
+            return
+        }
+
+        val shuffledPlayers = players.shuffled()
+        val playersList = shuffledPlayers.mapIndexed { index, player ->
+            "${index + 1}. ${player.name}"
+        }.joinToString("\n")
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("ترتیب نشستن")
+            .setMessage(playersList)
+            .setPositiveButton(R.string.mafia_ok, null)
+            .show()
     }
+
+    override fun onSupportNavigateUp(): Boolean { finish(); return true }
 }
-
-
