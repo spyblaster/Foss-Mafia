@@ -28,6 +28,7 @@ import org.fossify.messages.R
 import java.text.Collator
 import java.util.Locale
 import kotlin.random.Random
+import android.text.TextUtils
 
 class ManageActivity : BaseGameActivity() {
 
@@ -56,11 +57,11 @@ class ManageActivity : BaseGameActivity() {
     private fun dp(v: Int) = (v * density).toInt()
 
     // ── role categorisation (unchanged from original) ───────────────────
-    private val dayRoles = listOf("جلب", "قاضی", "شهردار", "جادوگر", "شاه_کش")
-    private val neverActRoles = listOf("شهروند_ساده1", "شهروند_ساده2", "شهروند_ساده3", "شهروند_ساده4", "رویین_تن", "مافیای_ساده", "یاغی", "بمب_ساز", "فدایی", "کابوس", "معشوقه")
-    private val onceOnlyRoles = listOf("ناتو", "اسنایپر", "بازپرس", "سرباز", "مین_گذار", "تفنگ_ساز", "دستکج")
-    private val counterRoles = listOf("گورکن", "گورکن_ستاره_دار")
-    private val selfOnceRoles = listOf("جراح", "دکتر", "دکتر_ستاره_دار")
+    private val dayRoles = listOf("جلب", "قاضی", "شهردار", "جادوگر", "شاه کش")
+    private val neverActRoles = listOf("شهروند ساده1", "شهروند ساده2", "شهروند ساده3", "شهروند ساده4", "رویین تن", "ساده", "مافیا ساده", "یاغی", "بمب ساز", "فدایی", "کابوس", "معشوقه")
+    private val onceOnlyRoles = listOf("ناتو", "اسنایپر", "بازپرس", "سرباز", "مین گذار", "تفنگ ساز", "دستکج")
+    private val counterRoles = listOf("گورکن", "گورکن ستاره ")
+    private val selfOnceRoles = listOf("جراح", "دکتر", "دکتر ستاره")
 
     private var timerHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var timerRunnable: Runnable? = null
@@ -141,7 +142,7 @@ class ManageActivity : BaseGameActivity() {
         horizontalScroll.setOnScrollChangeListener { _, _, _, _, _ -> bodyHorizontalScroll.scrollX = horizontalScroll.scrollX }
         bodyHorizontalScroll.setOnScrollChangeListener { _, _, _, _, _ -> horizontalScroll.scrollX = bodyHorizontalScroll.scrollX }
 
-        val hasBazporsOrNamayandeh = tableData.any { it.roleName == "رویین_تن" || it.roleName == "یاغی" }
+        val hasBazporsOrNamayandeh = tableData.any { it.roleName == "رویین تن" || it.roleName == "یاغی" }
 
         // ── Tools row (card / inquiry / talk / lottery) ───────────────
         toolsLayout = LinearLayout(this).apply {
@@ -213,20 +214,26 @@ class ManageActivity : BaseGameActivity() {
     }
 
     private fun headerCell(text: String) = TextView(this).apply {
-        this.text = text
+        this.text = text.replace('\n', ' ')
         textSize = 15f
         setTextColor(textColor)
         setTypeface(null, Typeface.BOLD)
         gravity = Gravity.CENTER
         setPadding(dp(4), dp(4), dp(4), dp(4))
+        setSingleLine(true)
+        ellipsize = TextUtils.TruncateAt.END
+        setHorizontallyScrolling(true)
     }
 
     private fun dataCell(text: String, strike: Boolean) = TextView(this).apply {
-        this.text = text
+        this.text = text.replace('\n', ' ')
         textSize = 15f
         setTextColor(textColor)
         gravity = Gravity.CENTER
         setPadding(dp(4), dp(4), dp(4), dp(4))
+        setSingleLine(true)
+        ellipsize = TextUtils.TruncateAt.END
+        setHorizontallyScrolling(true)
         if (strike) paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
     }
 
@@ -311,10 +318,10 @@ class ManageActivity : BaseGameActivity() {
 
     private fun addColumn(prefix: String) {
         if (prefix == "نیمروز" && extraColumns.isNotEmpty() && extraColumns.last().name.startsWith("نیمروز")) {
-            Toast.makeText(this, "نیمروز قبلاً ثبت شده", Toast.LENGTH_SHORT).show(); return
+            Toast.makeText(this, "نیمروز قبلا ثبت شده", Toast.LENGTH_SHORT).show(); return
         }
         if (extraColumns.any { !it.confirmed }) {
-            Toast.makeText(this, "ابتدا ستون فعلی را تایید کنید", Toast.LENGTH_SHORT).show(); return
+            Toast.makeText(this, "نخست ستون فعلی را تایید کنید", Toast.LENGTH_SHORT).show(); return
         }
         extraColumns.add(ExtraColumn(if (prefix == "شب") "شب${getNextNightNumber()}" else "نیمروز", MutableList(tableData.size) { "" }, false))
         saveExtraColumns(); refreshTable()
@@ -408,10 +415,63 @@ class ManageActivity : BaseGameActivity() {
         scrollHeadersRow.removeAllViews(); scrollDataLayout.removeAllViews(); fixedBodyLayout.removeAllViews()
         val rh = dp(rowHeightDp)
 
+        // calculate column widths based on longest content (headers + cells)
+        val sDensity = resources.displayMetrics.scaledDensity
+        val headerPaintLarge = android.graphics.Paint().apply { isAntiAlias = true; textSize = 15f * sDensity }
+        val headerPaintSmall = android.graphics.Paint().apply { isAntiAlias = true; textSize = 13f * sDensity }
+        val cellPaint = android.graphics.Paint().apply { isAntiAlias = true; textSize = 15f * sDensity }
+
+        val fixedHeaders = listOf("جان", "نقش", "نام")
+        val minFixed = listOf(dp(50), dp(80), dp(90))
+        val fixedWidths = mutableListOf<Int>()
+        for (i in fixedHeaders.indices) {
+            var maxW = headerPaintLarge.measureText(fixedHeaders[i]).toInt()
+            for ((rowIdx, row) in tableData.withIndex()) {
+                val content = when (i) {
+                    0 -> if (row.lives == 0) "🖤" else "❤️"
+                    1 -> displayRoleName(row.roleName)
+                    else -> row.playerName
+                }
+                val measured = cellPaint.measureText(content.replace('\n', ' ')).toInt()
+                maxW = maxOf(maxW, measured)
+            }
+            fixedWidths.add(maxOf(maxW + dp(8), minFixed[i]))
+        }
+
+        // prepare scrollable columns (extraColumns) widths
+        val scrollColWidths = mutableListOf<Int>()
+        extraColumns.forEachIndexed { idx, col ->
+            var maxW = 0
+            // header width
+            val headerW = headerPaintSmall.measureText(if (col.confirmed) col.name else "✅ ${col.name}").toInt()
+            maxW = maxOf(maxW, headerW)
+            // cells width
+            for (r in tableData.indices) {
+                val raw = if (col.confirmed && col.cells.getOrElse(r) { "" }.isEmpty()) "-" else displayCellText(col.cells.getOrElse(r) { "" })
+                val cellText = raw.replace('\n', ' ')
+                val measured = cellPaint.measureText(cellText).toInt()
+                maxW = maxOf(maxW, measured)
+            }
+            scrollColWidths.add(maxW + dp(8))
+        }
+
+        // apply fixed widths to header fixed cells (first three children of fixedHeaderContainer)
+        try {
+            for (i in 0 until minOf(3, fixedHeaderContainer.childCount)) {
+                val lp = fixedHeaderContainer.getChildAt(i).layoutParams as? LinearLayout.LayoutParams
+                if (lp != null) {
+                    lp.width = fixedWidths[i]
+                    lp.height = rh
+                    fixedHeaderContainer.getChildAt(i).layoutParams = lp
+                }
+            }
+        } catch (e: Exception) { }
+
+        // add header views for scrollable columns
         extraColumns.forEachIndexed { idx, col ->
             val hCell = TextView(this).apply {
                 text = if (col.confirmed) col.name else "✅ ${col.name}"
-                textSize = 13f; setTextColor(if (col.confirmed) textColor else Color.BLACK); setTypeface(null, Typeface.BOLD)
+                textSize = 13f; setTextColor(if (col.confirmed) textColor else if (isDarkTheme()) Color.WHITE else Color.BLACK); setTypeface(null, Typeface.BOLD)
                 gravity = Gravity.CENTER; setPadding(dp(4), dp(4), dp(4), dp(4))
                 if (!col.confirmed) setOnClickListener {
                     extraColumns[idx] = col.copy(cells = col.cells.map { it.ifEmpty { "-" } }.toMutableList(), confirmed = true)
@@ -426,7 +486,7 @@ class ManageActivity : BaseGameActivity() {
                     true
                 }
             }
-            scrollHeadersRow.addView(hCell, LinearLayout.LayoutParams(dp(cellWidthDp), rh))
+            scrollHeadersRow.addView(hCell, LinearLayout.LayoutParams(scrollColWidths[idx], rh))
         }
 
         for ((rowIdx, row) in tableData.withIndex()) {
@@ -437,9 +497,9 @@ class ManageActivity : BaseGameActivity() {
             fixedRow.addView(TextView(this).apply {
                 text = if (isDead) "🖤" else "❤️"; textSize = 18f; gravity = Gravity.CENTER
                 if (isEditMode) setOnClickListener { tableData[rowIdx] = tableData[rowIdx].copy(lives = if (isDead) 1 else 0); saveTableData(); refreshTable() }
-            }, LinearLayout.LayoutParams(dp(50), rh))
-            fixedRow.addView(dataCell(row.roleName, isDead), LinearLayout.LayoutParams(dp(80), rh))
-            fixedRow.addView(dataCell(row.playerName, isDead), LinearLayout.LayoutParams(dp(90), rh))
+            }, LinearLayout.LayoutParams(fixedWidths.getOrNull(0) ?: dp(50), rh))
+            fixedRow.addView(dataCell(displayRoleName(row.roleName), isDead), LinearLayout.LayoutParams(fixedWidths.getOrNull(1) ?: dp(80), rh))
+            fixedRow.addView(dataCell(row.playerName, isDead), LinearLayout.LayoutParams(fixedWidths.getOrNull(2) ?: dp(90), rh))
             fixedBodyLayout.addView(fixedRow)
 
             val scrollRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; layoutDirection = View.LAYOUT_DIRECTION_RTL; setBackgroundColor(bg) }
@@ -473,13 +533,18 @@ class ManageActivity : BaseGameActivity() {
                 }
                 val txt = if (col.confirmed && col.cells.getOrElse(rowIdx) { "" }.isEmpty()) "-" else displayCellText(col.cells.getOrElse(rowIdx) { "" })
                 val cellText = TextView(this).apply {
-                    text = txt; textSize = 14f
+                    text = txt.replace('\n', ' ')
+                    textSize = 14f
                     setTextColor(if (col.confirmed) textColor else Color.BLACK)
-                    gravity = Gravity.CENTER; setPadding(dp(4), dp(4), dp(4), dp(4))
+                    gravity = Gravity.CENTER
+                    setPadding(dp(4), dp(4), dp(4), dp(4))
                     setBackgroundColor(cellBg)
+                    setSingleLine(true)
+                    ellipsize = TextUtils.TruncateAt.END
                     if (!col.confirmed && !cellBlack) setOnClickListener { handleCellClick(colIdx, rowIdx, row, isDayColumn) }
                 }
-                scrollRow.addView(cellText, LinearLayout.LayoutParams(dp(cellWidthDp), rh))
+                val w = scrollColWidths.getOrNull(colIdx) ?: dp(cellWidthDp)
+                scrollRow.addView(cellText, LinearLayout.LayoutParams(w, rh))
             }
             scrollDataLayout.addView(scrollRow)
         }
@@ -490,7 +555,7 @@ class ManageActivity : BaseGameActivity() {
 
     private fun handleCellClick(cIdx: Int, rIdx: Int, row: TableRow, isDay: Boolean) {
         val allKnownRoles = dayRoles + neverActRoles + onceOnlyRoles + counterRoles + selfOnceRoles +
-            listOf("جلب", "قاضی", "شهردار", "جادوگر", "شاه_کش", "قهرمان", "بازپرس", "رمال", "شب_خسب", "رییس", "افشاگر", "پزشک", "کشیش")
+            listOf("جلب", "قاضی", "شهردار", "جادوگر", "شاه کش", "قهرمان", "بازپرس", "رمال", "شب خسب", "رییس", "افشاگر", "پزشک", "کشیش")
         val aliveCount = tableData.count { it.lives > 0 }
         val isCustomRole = row.roleName !in allKnownRoles
         when {
@@ -499,11 +564,11 @@ class ManageActivity : BaseGameActivity() {
             row.roleName == "کشیش" -> showTwoSelectPicker(cIdx, rIdx, row)
             row.roleName in listOf("قاضی", "شهردار") -> showYesNoDialog(cIdx, rIdx, row.roleName) { extraColumns[cIdx].cells[rIdx] = (findMaxNumber(cIdx, rIdx) + 1).toString() }
             row.roleName in counterRoles -> showYesNoDialog(cIdx, rIdx, row.roleName) { extraColumns[cIdx].cells[rIdx] = (findMaxNumber(cIdx, rIdx) + 1).toString() }
-            row.roleName == "شاه_کش" -> showShahKeshPicker(cIdx, rIdx, row)
+            row.roleName == "شاه کش" -> showShahKeshPicker(cIdx, rIdx, row)
             row.roleName == "بازپرس" -> showBazporsPicker(cIdx, rIdx, row)
             row.roleName == "افشاگر" -> showAfshagarPicker(cIdx, rIdx, row)
             row.roleName == "رمال" -> showRammalPicker(cIdx, rIdx, row)
-            row.roleName == "شب_خسب" -> { val prev = extraColumns.take(cIdx).findLast { it.name.startsWith("شب") }?.cells?.getOrElse(rIdx) { "" } ?: ""; showFilteredPlayerPicker(cIdx, rIdx, row) { p -> p.side != "مافیا" && p.playerName != prev } }
+            row.roleName == "شب خسب" -> { val prev = extraColumns.take(cIdx).findLast { it.name.startsWith("شب") }?.cells?.getOrElse(rIdx) { "" } ?: ""; showFilteredPlayerPicker(cIdx, rIdx, row) { p -> p.side != "مافیا" && p.playerName != prev } }
             row.roleName in selfOnceRoles -> { val sn = row.playerName; val hp = extraColumns.any { col -> col.cells.getOrElse(rIdx) { "" } == sn }; showFilteredPlayerPicker(cIdx, rIdx, row) { p -> !(p.playerName == sn && hp) } }
             isCustomRole && row.selectionType == RoleActivity.SELECT_TWO -> showTwoSelectPicker(cIdx, rIdx, row)
             isCustomRole && row.selectionType == RoleActivity.SELECT_MULTI -> showMultiSelectPicker(cIdx, rIdx, row)
@@ -704,6 +769,13 @@ class ManageActivity : BaseGameActivity() {
             names.size > 2 -> "${toPersianDigits(names.size)} انتخاب"
             else -> stored
         }
+    }
+
+    private fun displayRoleName(storedRole: String): String {
+        val norm = storedRole.replace('_', ' ').trim()
+        if (norm.startsWith("شهروند ساده") || norm.startsWith("مافیا ساده")) return "ساده"
+        if (norm.contains("ستاره دار")) return norm.replace("ستاره دار", "ستاره")
+        return storedRole
     }
 
     private fun showColumnDetails(col: ExtraColumn) {

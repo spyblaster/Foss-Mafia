@@ -35,21 +35,22 @@
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/result_send_sms_btn"
+            android:id="@+id/result_send_sms_only_btn"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/small_margin"
             android:layout_weight="1"
-            android:text="@string/mafia_send_roles" />
+            android:text="فرستادن پیامک" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/result_send_sms_only_btn"
+            android:id="@+id/result_swap_btn"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/small_margin"
             android:layout_weight="1"
-            android:text="فرستادن پیامک" />
+            android:text="جابجایی" />
     </LinearLayout>
 
     <LinearLayout
@@ -85,6 +86,22 @@
             android:layout_marginStart="@dimen/small_margin"
             android:layout_weight="1"
             android:text="@string/mafia_table" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/small_margin"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/result_send_sms_btn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/small_margin"
+            android:layout_weight="1"
+            android:text="@string/mafia_send_roles" />
+
     </LinearLayout>
 
 </LinearLayout>

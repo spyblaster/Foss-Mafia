@@ -22,6 +22,19 @@ import org.fossify.messages.mafia.adapters.ResultItem
 
 class ResultActivity : BaseGameActivity() {
 
+    private fun swapAssignedRoles(indexA: Int, indexB: Int) {
+        val rA = resultList[indexA]
+        val rB = resultList[indexB]
+        val newA = rA.copy(playerName = rB.playerName, playerPhone = rB.playerPhone, lives = rA.lives)
+        val newB = rB.copy(playerName = rA.playerName, playerPhone = rA.playerPhone, lives = rB.lives)
+        resultList[indexA] = newA
+        resultList[indexB] = newB
+        saveGame()
+        refreshResultList()
+        resultAdapter.notifyDataSetChanged()
+        updateSwapButtonState()
+    }
+
     private val binding by viewBinding(ActivityMafiaResultBinding::inflate)
     private val resultAdapter = ResultAdapter()
 
@@ -82,6 +95,78 @@ class ResultActivity : BaseGameActivity() {
             startActivity(intent)
         }
         binding.resultShareBtn.setOnClickListener { shareTableAsImage() }
+        binding.resultSwapBtn.setOnClickListener { showSwapDialog() }
+
+        updateSwapButtonState()
+
+    }
+
+    private fun showSwapDialog() {
+        if (resultList.isEmpty()) {
+            toast("هیچ نقشی برای جابجایی وجود ندارد")
+            return
+        }
+
+        val items = resultList.map { "${it.role.name} - ${it.playerName}" }
+        val checked = booleanArrayOf(false, false)
+        var firstIndex = -1
+        var secondIndex = -1
+
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+
+        val checkBoxes = mutableListOf<android.widget.CheckBox>()
+        for ((idx, r) in resultList.withIndex()) {
+            val cb = android.widget.CheckBox(this).apply {
+                text = "${r.role.name} - ${r.playerName}"
+                layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
+            }
+            cb.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) {
+                    if (firstIndex == -1) firstIndex = idx
+                    else if (secondIndex == -1) secondIndex = idx
+                    else {
+                        cb.isChecked = false
+                        toast("فقط دو نفر میتوانند انتخاب شوند")
+                    }
+                } else {
+                    if (firstIndex == idx) firstIndex = -1
+                    else if (secondIndex == idx) secondIndex = -1
+                }
+            }
+            checkBoxes.add(cb)
+        }
+
+        val scrollView = android.widget.ScrollView(this).apply {
+            val screenHeight = resources.displayMetrics.heightPixels
+            val maxHeight = (screenHeight * 0.5).toInt()
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                maxHeight
+            )
+        }
+        val cbLayout = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL }
+        checkBoxes.forEach { cbLayout.addView(it) }
+        scrollView.addView(cbLayout)
+        layout.addView(scrollView)
+
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("جابجایی نقش‌ها")
+            .setView(layout)
+            .setPositiveButton("تایید") { _, _ ->
+                if (firstIndex >= 0 && secondIndex >= 0) {
+                    swapAssignedRoles(firstIndex, secondIndex)
+                } else {
+                    toast("دو نقش انتخاب نشده")
+                }
+            }
+            .setNegativeButton(R.string.mafia_cancel, null)
+            .create()
+
+        dialog.show()
     }
 
     override fun onResume() {
@@ -122,6 +207,21 @@ class ResultActivity : BaseGameActivity() {
             }
         }
         resultAdapter.submitItems(items)
+        updateSwapButtonState()
+    }
+
+    private fun updateSwapButtonState() {
+        val anyDead = ::resultList.isInitialized && resultList.any { it.lives == 0 }
+        var hasNightOrDay = manageColumns.any { it.title.startsWith("شب") || it.title.startsWith("نیمروز") }
+        try {
+            val extraFile = java.io.File(filesDir, "extra_columns.json")
+            if (extraFile.exists()) {
+                val type = object : TypeToken<List<ManageActivity.ExtraColumn>>() {}.type
+                val ecs: List<ManageActivity.ExtraColumn> = mafiaGson.fromJson(extraFile.readText(), type)
+                if (ecs.any { it.name.startsWith("شب") || it.name.startsWith("نیمروز") }) hasNightOrDay = true
+            }
+        } catch (e: Exception) { /* ignore parsing errors */ }
+        binding.resultSwapBtn.isEnabled = !anyDead && !hasNightOrDay
     }
 
     private fun getCounter(): Int =
@@ -145,6 +245,7 @@ class ResultActivity : BaseGameActivity() {
             columns = manageColumns.map { ColumnData(it.title, it.values.toMutableList()) }
         )
         java.io.File(filesDir, "game.json").writeText(mafiaGson.toJson(saved))
+        updateSwapButtonState()
     }
 
     private fun loadSavedGame() {
@@ -157,11 +258,13 @@ class ResultActivity : BaseGameActivity() {
             manageColumns.clear()
             manageColumns.addAll(saved.columns.map { ColumnData(it.title, it.values.toMutableList()) })
         }
+        updateSwapButtonState()
     }
 
     private fun deleteSavedGame() {
         java.io.File(filesDir, "extra_columns.json").delete()
         java.io.File(filesDir, "game.json").delete()
+        updateSwapButtonState()
     }
 
     private fun showSendSmsDialog() {
@@ -191,6 +294,7 @@ class ResultActivity : BaseGameActivity() {
             }
             .setNegativeButton(R.string.mafia_no, null)
             .show()
+        updateSwapButtonState()
     }
 
     private fun sendRolesViaSms(smsPlayers: List<RoleActivity.AssignedRole>) {
