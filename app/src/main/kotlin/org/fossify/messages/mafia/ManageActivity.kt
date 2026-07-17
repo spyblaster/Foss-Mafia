@@ -411,7 +411,7 @@ class ManageActivity : BaseGameActivity() {
         extraColumns.forEachIndexed { idx, col ->
             val hCell = TextView(this).apply {
                 text = if (col.confirmed) col.name else "✅ ${col.name}"
-                textSize = 13f; setTextColor(textColor); setTypeface(null, Typeface.BOLD)
+                textSize = 13f; setTextColor(if (col.confirmed) textColor else Color.BLACK); setTypeface(null, Typeface.BOLD)
                 gravity = Gravity.CENTER; setPadding(dp(4), dp(4), dp(4), dp(4))
                 if (!col.confirmed) setOnClickListener {
                     extraColumns[idx] = col.copy(cells = col.cells.map { it.ifEmpty { "-" } }.toMutableList(), confirmed = true)
@@ -455,6 +455,8 @@ class ManageActivity : BaseGameActivity() {
                     }
                     row.roleName == "قهرمان" -> isDead || isDayColumn || (nightNum % 2 != 0)
                     row.roleName == "رمال" -> isDead || isDayColumn || !canRammalAct(colIdx, rowIdx, nightNum)
+                    row.roleName == "پزشک" -> isDead || isDayColumn
+                    row.roleName == "کشیش" -> isDead || isDayColumn
                     row.roleName in onceOnlyRoles -> isDead || isDayColumn || hasOnceOnlyWorked(colIdx, rowIdx)
                     isDayColumn -> isDead || !dayRoles.contains(row.roleName)
                     row.roleName in listOf("قاضی", "شهردار") -> true
@@ -472,7 +474,7 @@ class ManageActivity : BaseGameActivity() {
                 val txt = if (col.confirmed && col.cells.getOrElse(rowIdx) { "" }.isEmpty()) "-" else displayCellText(col.cells.getOrElse(rowIdx) { "" })
                 val cellText = TextView(this).apply {
                     text = txt; textSize = 14f
-                    setTextColor(if (col.confirmed || !cellBlack) textColor else if (isDarkTheme()) Color.WHITE else Color.WHITE)
+                    setTextColor(if (col.confirmed) textColor else Color.BLACK)
                     gravity = Gravity.CENTER; setPadding(dp(4), dp(4), dp(4), dp(4))
                     setBackgroundColor(cellBg)
                     if (!col.confirmed && !cellBlack) setOnClickListener { handleCellClick(colIdx, rowIdx, row, isDayColumn) }
@@ -488,10 +490,13 @@ class ManageActivity : BaseGameActivity() {
 
     private fun handleCellClick(cIdx: Int, rIdx: Int, row: TableRow, isDay: Boolean) {
         val allKnownRoles = dayRoles + neverActRoles + onceOnlyRoles + counterRoles + selfOnceRoles +
-            listOf("جلب", "قاضی", "شهردار", "جادوگر", "شاه_کش", "قهرمان", "بازپرس", "رمال", "شب_خسب", "رییس", "افشاگر")
+            listOf("جلب", "قاضی", "شهردار", "جادوگر", "شاه_کش", "قهرمان", "بازپرس", "رمال", "شب_خسب", "رییس", "افشاگر", "پزشک", "کشیش")
+        val aliveCount = tableData.count { it.lives > 0 }
         val isCustomRole = row.roleName !in allKnownRoles
         when {
             row.roleName == "جلب" -> if (isDay) showYesNoDialog(cIdx, rIdx, "جلب") { extraColumns[cIdx].cells[rIdx] = "✅" } else showJalbNightPicker(cIdx, rIdx, row)
+            row.roleName == "پزشک" -> if (aliveCount >= 10) showTwoSelectPicker(cIdx, rIdx, row) else showPlayerPicker(cIdx, rIdx, row)
+            row.roleName == "کشیش" -> showTwoSelectPicker(cIdx, rIdx, row)
             row.roleName in listOf("قاضی", "شهردار") -> showYesNoDialog(cIdx, rIdx, row.roleName) { extraColumns[cIdx].cells[rIdx] = (findMaxNumber(cIdx, rIdx) + 1).toString() }
             row.roleName in counterRoles -> showYesNoDialog(cIdx, rIdx, row.roleName) { extraColumns[cIdx].cells[rIdx] = (findMaxNumber(cIdx, rIdx) + 1).toString() }
             row.roleName == "شاه_کش" -> showShahKeshPicker(cIdx, rIdx, row)

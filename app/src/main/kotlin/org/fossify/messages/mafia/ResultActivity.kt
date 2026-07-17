@@ -469,12 +469,12 @@ class ResultActivity : BaseGameActivity() {
         val textPaint = android.graphics.Paint().apply {
             isAntiAlias = true
             this.textSize = textSizePx
-            typeface = android.graphics.Typeface.DEFAULT
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
         val strikePaint = android.graphics.Paint().apply {
             isAntiAlias = true
             this.textSize = textSizePx
-            typeface = android.graphics.Typeface.DEFAULT
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             flags = android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
         }
 
@@ -552,7 +552,7 @@ class ResultActivity : BaseGameActivity() {
                 textAlign = android.graphics.Paint.Align.CENTER
             }
             val deadPaint = strikePaint.apply {
-                color = android.graphics.Color.parseColor("#9E9E9E")
+                color = android.graphics.Color.parseColor("#212121")
                 textAlign = android.graphics.Paint.Align.CENTER
             }
 
